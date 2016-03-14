@@ -28,6 +28,11 @@ var Processor=function(){
             PThis.Registers.m=1;
         }
     };
+    this.load={
+        LOAD8RtoR: function (n,m){ //pass as string, loads reg m into reg n
+            PThis.Registers.EightBit[n]= PThis.get8Reg(m);
+        }
+    };
     this.NOP= function() { //0x00
     };
     this.get8Reg=function(x){
@@ -52,7 +57,7 @@ var Processor=function(){
     }
 };
 var p1 = new Processor();
-var p2 = new Processor();
+/*var p2 = new Processor();
 p1.Registers.EightBit.a=254;
 p1.Registers.EightBit.b=2;
 p2.Registers.EightBit.a=200;
@@ -62,5 +67,5 @@ p2.ADD.ADD8('b');
 console.log(p1.Registers.EightBit.a);
 console.log(p1.Registers.EightBit.f);
 console.log(p2.Registers.EightBit.a);
-console.log(p2.Registers.EightBit.f);
+console.log(p2.Registers.EightBit.f);*/
 
