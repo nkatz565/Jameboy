@@ -149,18 +149,33 @@ var Processor=function(){
             if(++PThis.Registers.EightBit[s2]>255){
                 PThis.Registers.EightBit[s2]&=255;
                 PThis.Registers.EightBit[s1]=(++PThis.Registers.EightBit[s1])&255;
-                PThis.Registers.m=1;
+                PThis.Registers.m=2;
             }
         },
         INC8: function (s1) { //3C 04 0C 14 1C 24 2C
-            regBefore=p1.Registers.EightBit[s1];
-            PThis.Registers.EightBit[s1]=(++PThis.Registers.EightBit[s1])&255;
-            (PThis.Registers.EightBit[s1]) ? PThis.FLAGS.CLEARx('z'): PThis.FLAGS.SETx('z');
-            ((p1.Registers.EightBit[s1]^1^regBefore)&0x10)? PThis.FLAGS.SETx('h'):PThis.FLAGS.CLEARx('h');
+            regBefore = PThis.Registers.EightBit[s1];
+            PThis.Registers.EightBit[s1] = (++PThis.Registers.EightBit[s1]) & 255;
+            (PThis.Registers.EightBit[s1]) ? PThis.FLAGS.CLEARx('z') : PThis.FLAGS.SETx('z');
+            ((p1.Registers.EightBit[s1] ^ 1 ^ regBefore) & 0x10) ? PThis.FLAGS.SETx('h') : PThis.FLAGS.CLEARx('h');
             PThis.FLAGS.CLEARx('n');
+            PThis.Registers.m=1;
         }
-
-    }
+    };
+    this.DEC={
+        DEC16:function(s1,s2){ //only use combinations of BC, DE, HL. 0B 1B 2B
+            PThis.Registers.EightBit[s1]=(--PThis.Registers.EightBit[s1])&255;
+            if(PThis.Registers.EightBit[s1]==255) PThis.Registers.EightBit[s2]= (--PThis.Registers.EightBit[s2])&255;
+            PThis.Registers.m=2;
+        },
+        DEC8:function(s1){
+            regBefore = PThis.Registers.EightBit[s1];
+            PThis.Registers.EightBit[s1] = (--PThis.Registers.EightBit[s1])&255;
+            (PThis.Registers.EightBit[s1]) ? PThis.FLAGS.CLEARx('z') : PThis.FLAGS.SETx('z');
+            ((p1.Registers.EightBit[s1] ^ -1 ^ regBefore) & 0x10) ? PThis.FLAGS.SETx('h') : PThis.FLAGS.CLEARx('h');
+            PThis.FLAGS.SETx('n');
+            PThis.Registers.m=1;
+        }
+    };
     this.NOP= function() { //0x00
     };
     this.FLAGS={
