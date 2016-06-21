@@ -171,7 +171,7 @@ var Processor=function(){
             if((PThis.Registers.EightBit.a^RegN^RegABefore)&0x10) PThis.FLAGS.SETx('h'); //set half carry
             PThis.Registers.m=1;
         },
-        ADD8C: function(n){ //87 88 89 8A 8B 8C 8D
+        ADD8C: function(n){ //87 88 89 8A 8B 8C 8D 8F
             var addC = ((PThis.Registers.EightBit.f)&0x10)?1:0;
             PThis.FLAGS.CLEARall();
             var RegABefore=PThis.get8Reg('a'); 
@@ -217,8 +217,106 @@ var Processor=function(){
             if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z'); 
             if ((PThis.Registers.EightBit.a ^ hl ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
             PThis.Registers.m = 2;
+        },
+        ADDatHLtoAC: function () { //8E
+            var addC = ((PThis.Registers.EightBit.f) & 0x10) ? 1 : 0;
+            PThis.FLAGS.CLEARall();
+            var RegABefore = PThis.get8Reg('a');
+            var hl = PThis.Memory.readByte((PThis.get8Reg('h') << 8) + PThis.get8Reg('l')) + addC;
+            PThis.Registers.EightBit.a += hl;
+            if (PThis.get8Reg('a') > 255) PThis.FLAGS.SETx('c');
+            PThis.Registers.EightBit.a &= 0xFF;
+            if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z');
+            if ((PThis.Registers.EightBit.a ^ hl ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
+            PThis.Registers.m = 2;
         }
     };
+    this.SUB = { 
+        SUB8: function (n) { //90 91 92 93 94 95 97
+            PThis.FLAGS.CLEARall();
+            PThis.FLAGS.SETx('n');
+            var RegABefore = PThis.get8Reg('a'); 
+            var RegN = PThis.get8Reg(n); 
+            PThis.Registers.EightBit.a -= RegN;
+            if (PThis.get8Reg('a') < 0) PThis.FLAGS.SETx('c'); 
+            PThis.Registers.EightBit.a &= 0xFF; 
+            if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z'); 
+            if ((PThis.Registers.EightBit.a ^ RegN ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
+            PThis.Registers.m = 1;
+        },
+        SUB8C: function (n) { //98 99 9A 9B 9C 9D 9F
+            var subC = ((PThis.Registers.EightBit.f) & 0x10) ? 1 : 0;
+            PThis.FLAGS.CLEARall();
+            PThis.FLAGS.SETx('n');
+            var RegABefore = PThis.get8Reg('a');
+            var RegN = PThis.get8Reg(n) + subC;
+            PThis.Registers.EightBit.a -= RegN;
+            if (PThis.get8Reg('a') < 0) PThis.FLAGS.SETx('c');
+            PThis.Registers.EightBit.a &= 0xFF;
+            if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z');
+            if ((PThis.Registers.EightBit.a ^ RegN ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
+            PThis.Registers.m = 1;
+        },
+        SUBatHLtoA: function (n) { //96
+            PThis.FLAGS.CLEARall();
+            PThis.FLAGS.SETx('n');
+            var RegABefore = PThis.get8Reg('a');
+            var hl = PThis.Memory.readByte((PThis.get8Reg('h') << 8) + PThis.get8Reg('l'));
+            PThis.Registers.EightBit.a -= hl;
+            if (PThis.get8Reg('a') < 0) PThis.FLAGS.SETx('c');
+            PThis.Registers.EightBit.a &= 0xFF;
+            if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z');
+            if ((PThis.Registers.EightBit.a ^ hl ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
+            PThis.Registers.m = 1;
+        },
+        SUBatHLtoAC: function (n) { //9E
+            var subC = ((PThis.Registers.EightBit.f) & 0x10) ? 1 : 0;
+            PThis.FLAGS.CLEARall();
+            PThis.FLAGS.SETx('n');
+            var RegABefore = PThis.get8Reg('a');
+            var hl = PThis.Memory.readByte((PThis.get8Reg('h') << 8) + PThis.get8Reg('l')) + subC;
+            PThis.Registers.EightBit.a -= hl;
+            if (PThis.get8Reg('a') < 0) PThis.FLAGS.SETx('c');
+            PThis.Registers.EightBit.a &= 0xFF;
+            if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z');
+            if ((PThis.Registers.EightBit.a ^ hl ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
+            PThis.Registers.m = 1;
+        }
+    }
+    this.AND = {
+        ANDN: function (n) { //A0 A1 A2 A3 A4 A5 A7
+            PThis.FLAGS.CLEARall();
+            var RegA = PThis.get8Reg('a');
+            var RegN = PThis.get8Reg(n);
+            PThis.Registers.EightBit.a = RegA & RegN;
+            PThis.FLAGS.SETx('h');
+            if (!PThis.Registers.EightBit.a) PThis.FLAGS.SETx('z');
+        },
+        ANDHL: function () { //A6
+            PThis.FLAGS.CLEARall();
+            var RegA = PThis.get8Reg('a');
+            var hl = PThis.Memory.readByte((PThis.get8Reg('h') << 8) + PThis.get8Reg('l'));
+            PThis.Registers.EightBit.a = RegA & hl;
+            PThis.FLAGS.SETx('h');
+            if (!PThis.Registers.EightBit.a) PThis.FLAGS.SETx('z');
+        }
+    }
+    this.XOR = {
+        XORN: function (n) { //A8 A9 AA AB AC AD AF
+            PThis.FLAGS.CLEARall();
+            var RegA = PThis.get8Reg('a');
+            var RegN = PThis.get8Reg(n);
+            PThis.Registers.EightBit.a = RegA ^ RegN;
+            if (!PThis.Registers.EightBit.a) PThis.FLAGS.SETx('z');
+        },
+        XORHL: function (n) { //AE
+            PThis.FLAGS.CLEARall();
+            var RegA = PThis.get8Reg('a');
+            var hl = PThis.Memory.readByte((PThis.get8Reg('h') << 8) + PThis.get8Reg('l'));
+            PThis.Registers.EightBit.a = RegA ^ hl;
+            if (!PThis.Registers.EightBit.a) PThis.FLAGS.SETx('z');
+        }
+    }
     this.LOAD={
         LOAD8RtoR: function (destination,source){ //pass as string, loads reg m into reg n. 7F 78 70 7A 7B 7C 7D 47 4F 57 5F 67 6F
             PThis.Registers.EightBit[destination]= PThis.get8Reg(source);
