@@ -159,6 +159,18 @@ var Processor=function(){
             PThis.Registers.m=1;
         }
     };
+	this.STACK={
+		POP: function (dest1, dest2){ //use BC DE HL AF. C1, D1, E1, F1
+			PThis.Registers.EightBit[dest2]=PThis.Memory.readByte(PThis.Registers.SixteenBit.sp++);
+            PThis.Registers.EightBit[dest1]=PThis.Memory.readByte(PThis.Registers.SixteenBit.sp++);
+            PThis.Registers.m=3;
+		},
+		PUSH: function (s1, s2){ //use BC DE HL AF. C5 D5 E5 F5
+			PThis.Memory.writeByte(--PThis.Registers.SixteenBit.sp, PThis.Registers.EightBit[s1]);
+			PThis.Memory.writeByte(--PThis.Registers.SixteenBit.sp, PThis.Registers.EightBit[s2]);
+			PThis.Registers.m=4;
+		}
+	};
     this.ADD={ 
         ADD8: function (n) { //pass as string //0x80 0x81 0x82 0x83 0x84 0x85
             PThis.FLAGS.CLEARall();
@@ -365,11 +377,7 @@ var Processor=function(){
             PThis.Registers.m = 2;
         }
     }
-    this.RET = {
-        RET: function () {
-
-        }
-    }
+    
     this.LOAD={
         LOAD8RtoR: function (destination,source){ //pass as string, loads reg m into reg n. 7F 78 70 7A 7B 7C 7D 47 4F 57 5F 67 6F
             PThis.Registers.EightBit[destination]= PThis.get8Reg(source);
@@ -566,13 +574,38 @@ var Processor=function(){
                 PThis.Registers.SixteenBit.pc++;//skip the 8 bit address even if you don't jump
             }
         },
-        JUMPa16: function () {
+        /*JUMPa16: function () { //IN PROGRESS FOR GOD SAKES
             var address = PThis.Memory.readWord(++(PThis.Registers.SixteenBit.pc));
             PThis.Memory.writeByte(address, (PThis.Registers.SixteenBit.sp) & 0xFF); //write lower 8 bits of SP at a16
             PThis.Memory.writeByte(address + 1, (PThis.Registers.SixteenBit.sp) >> 8); //write higher 8 bits of SP at a16+1
             PThis.Registers.SixteenBit.pc++;
             PThis.Registers.m = 5;
-        }
+        },*/
+		RET: function(){//c9
+			PThis.Registers.SixteenBit.pc=PThis.Memory.readWord(PThis.Registers.SixteenBit.sp)
+			PThis.Registers.SixteenBit.sp+=2;
+			PThis.Registers.m = 3;
+		},
+		RETifCC: function(x){ //C0 C8 D0 D8
+			var ret=0;
+            switch (x) {
+                case 'nz':
+                    if((PThis.Registers.EightBit.f&0x80)==0) ret=1;
+                    break;
+                case 'z':
+                    if(PThis.Registers.EightBit.f&0x80) ret=1;
+                    break;
+                case 'nc':
+                    if((PThis.Registers.EightBit.f&0x10)==0) ret=1;
+                    break;
+                case 'c':
+                    if(PThis.Registers.EightBit.f&0x10) ret=1;
+                    break;
+            }
+            if(ret){
+                PThis.JUMP.RET();
+            }
+		}
     };
     this.FLAGS={
         CLEARall: function(){
