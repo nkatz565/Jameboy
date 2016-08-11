@@ -12,10 +12,10 @@
 9   90 91 92 93 94 95 96 97 98 99 9A 9B 9C 9D 9E 9F
 A   A0 A1 A2 A3 A4 A5 A6 A7 A8 A9 AA AB AC AD AE AF
 B   B0 B1 B2 B3 B4 B5 B6 B7 B8 B9 BA BB BC BD BE BF
-C   C0 C1 xx xx xx C5 xx xx C8 C9 xx xx xx xx xx xx
-D   D0 D1 xx NA xx D5 xx xx D8 xx xx xx xx xx xx xx
-E   xx E1 xx NA NA E5 xx xx xx xx xx xx xx xx xx xx
-F   xx F1 xx xx NA F5 xx xx xx xx xx NA NA xx xx xx
+C   C0 C1 C2 C3 C4 C5 C6 xx C8 C9 CA xx CC CD CE xx
+D   D0 D1 D2 NA D4 D5 D6 xx D8 xx DA xx CD xx DE xx
+E   xx E1 xx NA NA E5 E6 xx xx xx xx xx xx xx EE xx
+F   xx F1 xx xx NA F5 F6 xx xx xx xx NA NA xx FE xx
 
 
 CB
