@@ -11,8 +11,14 @@ var Processor=function(){
             sp: 0, pc: 0, i: 0, r: 0 //special 16 bit registers
         },
         m:0, //cycles used
-        IE:0 //interupts enabled*/
+        IE:false //interupts enabled register. Determines which interupts are currently allowed*/
     };
+	this.IME=false; //MASTER INTERUPT ENABLE. ALLOWS INTERUPTS TO OCCUR.
+	this.IF=false; //interupt flags. Determines if an interupt must be processed
+	this.exec = function(){
+		//run function
+		//increment pc after
+	}
     this.Memory={
         bios: [
             0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
@@ -110,6 +116,9 @@ var Processor=function(){
         ScrollX:0,
         ScrollY:0
     };
+	this.Interupts = function(bool){ //mostly wrong
+		PThis.IME=bool;
+	};
     STOP=0;
     HALT=0;
     this.MISC={
@@ -169,7 +178,7 @@ var Processor=function(){
 			PThis.Registers.SixteenBit.pc=PThis.Memory.readWord(PThis.Registers.SixteenBit.pc);
             PThis.Registers.m=3;
 		},
-		CALLif: function(x){ //C4 CC D4 DD
+		CALLif: function(x){ //C4 CC D4 DC
 			var call=0;
             switch (x) {
                 case 'nz':
@@ -295,6 +304,20 @@ var Processor=function(){
             if (PThis.get8Reg('a') == 0) PThis.FLAGS.SETx('z');
             if ((PThis.Registers.EightBit.a ^ hl ^ RegABefore) & 0x10) PThis.FLAGS.SETx('h');
             PThis.Registers.m = 2;
+        },
+		ADDspn: function () { //E8
+            PThis.FLAGS.CLEARall();
+			
+			var imm=PThis.Memory.readByte(++PThis.Registers.SixteenBit.pc); 
+            var sp=PThis.Registers.SixteenBit.sp; 
+
+			var result = (sp+imm)&0xFFFF;
+			var temp = sp ^ imm ^ result;
+			
+			PThis.Registers.SixteenBit.sp=result;
+			
+			if((temp &0x100)==0x100) PThis.FLAGS.SETx('c');
+			if((temp &0x10)==0x10) PThis.FLAGS.SETx('h');
         }
     };
     this.SUB = { 
@@ -559,7 +582,25 @@ var Processor=function(){
             var hl = (PThis.get8Reg('h')<<8)+PThis.get8Reg('l');
             PThis.Memory.writeByte(hl,PThis.get8Reg(s1));
             PThis.Registers.m=2;
-        }
+        },
+		LDHto: function(){ //E0
+			PThis.Registers.SixteenBit.pc++;
+			PThis.Memory.writeByte(0xFF00+PThis.Memory.readByte(PThis.Registers.SixteenBit.pc), PThis.Registers.EightBit.a);
+			PThis.Registers.m=3;
+		},
+		LDHfrom: function(){ //F0
+			PThis.Registers.SixteenBit.pc++;
+			PThis.Registers.EightBit.a = PThis.Memory.readByte(0xFF00+PThis.Memory.readByte(PThis.Registers.SixteenBit.pc));
+			PThis.Registers.m=3;
+		},
+		LDCto: function(){ //E2
+			PThis.Memory.writeByte(0xFF00+PThis.Registers.EightBit.c, PThis.Registers.EightBit.a);
+			PThis.Registers.m=2;
+		},
+		LDCfrom: function(){ //F2
+			PThis.Registers.EightBit.a = PThis.Memory.readByte(0xFF00+PThis.Registers.EightBit.c);
+			PThis.Registers.m=2;
+		}
     };
     this.INC={
         INC16: function (s1,s2){ //only use combinations of BC, DE, HL. 03 13 23
@@ -739,8 +780,29 @@ var Processor=function(){
             if(ret){
                 PThis.JUMP.RET();
             }
+		},
+		RETI: function(){ //D9 mostly wrong
+			PThis.JUMP.RET();
+			PThis.Interupts(true);
+			PThis.Registers.m = 2;
 		}
     };
+	this.RESET={
+		RST: function(addr) { //use only (hex) 00 08 10 18 20 28 30 38. C7 CF D7 DF E7 EF F7 FF
+			PThis.Registers.SixteenBit.sp -=2;
+			PThis.Memory.writeWord(PThis.Registers.SixteenBit.sp,PThis.Registers.SixteenBit.pc);
+			PThis.Registers.SixteenBit.pc=addr;
+			PThis.Registers.m = 8;
+		}
+	}
+	
+	this.CB = function(){ //CB UNFINISHED
+		PThis.Registers.SixteenBit.pc++;
+		PThis.Registers.SixteenBit.pc &= 65535;
+		PThis.Memory.readByte(PThis.Registers.SixteenBit.pc); 
+		//MAPPING HERE
+	}
+	
     this.FLAGS={
         CLEARall: function(){
             PThis.Registers.EightBit.f=0;
