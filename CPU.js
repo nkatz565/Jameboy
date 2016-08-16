@@ -11,7 +11,7 @@ var Processor=function(){
             sp: 0, pc: 0, i: 0, r: 0 //special 16 bit registers
         },
         m:0, //cycles used
-        IE:false //interupts enabled register. Determines which interupts are currently allowed*/
+        IE:0 //interupts enabled register. Determines which interupts are currently allowed*/
     };
 	this.IME=false; //MASTER INTERUPT ENABLE. ALLOWS INTERUPTS TO OCCUR.
 	this.IF=false; //interupt flags. Determines if an interupt must be processed
@@ -71,8 +71,11 @@ var Processor=function(){
                     }
                     else if(mask = 0xF00){
                         //interupts and stuff go here
-                        if(address >=0xFF80){
-                            return PThis.Memory.zeroPageRam[address /* 0x7F */];
+						if(address ==0xFFFF){
+							return PThis.Registers.IE;
+						}
+                        if(address > 0xFF80){
+                            return PThis.Memory.zeroPageRam[address];
                         }
                     }
                     else{
@@ -578,11 +581,21 @@ var Processor=function(){
             PThis.Registers.EightBit[dest1] = PThis.Memory.readByte(hl);
             PThis.Registers.m=2;
         },
-        LOADrATaddress: function(s1){ //70 71 72 73 74 75 77
+        LOADrATaddressHL: function(s1){ //70 71 72 73 74 75 77
             var hl = (PThis.get8Reg('h')<<8)+PThis.get8Reg('l');
             PThis.Memory.writeByte(hl,PThis.get8Reg(s1));
             PThis.Registers.m=2;
         },
+		LOADaATimm: function(){ //EA
+			PThis.Registers.SixteenBit.pc++;
+			PThis.Memory.writeByte(PThis.Memory.readWord(PThis.Registers.SixteenBit.pc),PThis.Registers.EightBit.a);
+			PThis.Registers.m=4;
+		},
+		LOADimmTOa: function(){ //FA
+			PThis.Registers.SixteenBit.pc++;
+			PThis.Registers.EightBit.a=PThis.Memory.readByte(PThis.Memory.readWord(PThis.Registers.SixteenBit.pc));
+			PThis.Registers.m=4;
+		},
 		LDHto: function(){ //E0
 			PThis.Registers.SixteenBit.pc++;
 			PThis.Memory.writeByte(0xFF00+PThis.Memory.readByte(PThis.Registers.SixteenBit.pc), PThis.Registers.EightBit.a);
@@ -599,6 +612,22 @@ var Processor=function(){
 		},
 		LDCfrom: function(){ //F2
 			PThis.Registers.EightBit.a = PThis.Memory.readByte(0xFF00+PThis.Registers.EightBit.c);
+			PThis.Registers.m=2;
+		},
+		LOADtoHLspPLUSn: function(){ //F8
+			var n=PThis.Memory.readByte(++PThis.Registers.SixteenBit.pc); 
+			var newHL = (PThis.Registers.SixteenBit.sp + n) &0xFFFF;
+			n = n ^ PThis.Registers.SixteenBit.sp ^ newHL;
+			PThis.FLAGS.CLEARall();
+			if ((n & 0x100) == 0x100) PThis.FLAGS.SETx('f');
+			if ((n & 0x10) == 0x10) PThis.FLAGS.SETx('h');
+			PThis.Registers.EightBit.h = newHL >> 8;
+            PThis.Registers.EightBit.l = newHL & 0xFF;
+			PThis.Registers.m=3;			
+		},
+		LOADtoSPhl: function(){ //F9
+			var hl = (PThis.get8Reg('h')<<8)+PThis.get8Reg('l');
+			PThis.Registers.SixteenBit.sp=hl;
 			PThis.Registers.m=2;
 		}
     };
@@ -700,6 +729,7 @@ var Processor=function(){
             PThis.Registers.EightBit.a = newA;
             PThis.Registers.m=1;
         }
+		
     };
     this.JUMP={
         JUMPr8: function(){ //18
@@ -730,6 +760,11 @@ var Processor=function(){
             else{
                 PThis.Registers.SixteenBit.pc++;//skip the 8 bit address even if you don't jump
             }
+        },
+		JUMPhl: function () { //E9
+            var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+            PThis.Registers.SixteenBit.pc=address;
+            PThis.Registers.m = 1;
         },
         JUMPa16: function () { //C3
             var address = PThis.Memory.readWord(++(PThis.Registers.SixteenBit.pc));
@@ -801,6 +836,76 @@ var Processor=function(){
 		PThis.Registers.SixteenBit.pc &= 65535;
 		PThis.Memory.readByte(PThis.Registers.SixteenBit.pc); 
 		//MAPPING HERE
+	}
+	
+	this.CBtable = {
+		ROTATE: {
+			RLCn: function (n){ //CB00 CB01 CB02 CB03 CB04 CB05 CB07
+				var N = PThis.Registers.EightBit[n];
+				var carryBit = (N&0x80)?1:0;
+				var newN = ((N<<1)+carryBit)&255;
+				PThis.FLAGS.CLEARall();
+				carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Registers.EightBit[n] = newN;
+				PThis.Registers.m=2;
+			},
+			RLatHL: function(){ //CB06
+				var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+				var N = PThis.Memory.readByte(address);
+				var carryBit = (N&0x80)?1:0;
+				var newN = ((N<<1)+carryBit)&255;
+				PThis.FLAGS.CLEARall();
+				carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Memory.writeByte(address, newN);
+				PThis.Registers.m=4;
+			},
+			RLn:function(n){ //CB10 CB11 CB12 CB13 CB14 CB15 CB17
+				var N = PThis.Registers.EightBit[n];
+				var newCarry = (N&0x80)?1:0;
+				var newBit = (PThis.Registers.EightBit.f&0x10)?1:0;
+				var newN = ((N<<1)+newBit)&255;
+				PThis.FLAGS.CLEARall();
+				newCarry==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Registers.EightBit[n] = newN;
+				PThis.Registers.m=2;
+			},
+			RRCn:function(n){ //CB08 CB09 CB0A CB0B CB0C CB0D CB0F 
+				var N = PThis.Registers.EightBit[n];
+				var carryBit = (N&0x01)?1:0;
+				var newN = ((N>>1)+carryBit*0x80)&255;
+				PThis.FLAGS.CLEARall();
+				carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Registers.EightBit[n] = newN;
+				PThis.Registers.m=2;
+			},
+			RLatHL: function(){ //CB0E
+				var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+				var N = PThis.Memory.readByte(address);
+				var carryBit = (N&0x01)?1:0;
+				var newN = ((N>>1)+carryBit*0x80)&255;
+				PThis.FLAGS.CLEARall();
+				carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Memory.writeByte(address, newN);
+				PThis.Registers.m=4;
+			},
+			RRn:function(n){ //CB18 CB19 CB1A CB1B CB1C CB1D CB1F  
+				var N = PThis.Registers.EightBit[n];
+				var newCarry = (N&0x01)?1:0;
+				var newBit = (PThis.Registers.EightBit.f&0x10)?1:0;
+				var newN = ((N>>1)+newBit*0x80)&255;
+				PThis.FLAGS.CLEARall();
+				newCarry==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+				if (newN==0) PThis.FLAGS.SETx('z');
+				PThis.Registers.EightBit[n] = newN;
+				PThis.Registers.m=1;
+			}
+		}
+		
 	}
 	
     this.FLAGS={
