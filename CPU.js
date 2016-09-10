@@ -841,16 +841,16 @@ var Processor=function(){
 	this.CBtable = {
 		ROTATE: {
 			RLCn: function (n){ //CB00 CB01 CB02 CB03 CB04 CB05 CB07
-				var N = PThis.Registers.EightBit[n];
-				var carryBit = (N&0x80)?1:0;
-				var newN = ((N<<1)+carryBit)&255;
-				PThis.FLAGS.CLEARall();
-				carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
-				if (newN==0) PThis.FLAGS.SETx('z');
+                var N = PThis.Memory.readByte(address);
+                var carryBit = (N&0x80)?1:0;
+                var newN = ((N<<1)+carryBit)&255;
+                PThis.FLAGS.CLEARall();
+                carryBit==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+                if (newN==0) PThis.FLAGS.SETx('z');
 				PThis.Registers.EightBit[n] = newN;
 				PThis.Registers.m=2;
 			},
-			RLatHL: function(){ //CB06
+			RLCatHL: function(){ //CB06
 				var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
 				var N = PThis.Memory.readByte(address);
 				var carryBit = (N&0x80)?1:0;
@@ -872,6 +872,18 @@ var Processor=function(){
 				PThis.Registers.EightBit[n] = newN;
 				PThis.Registers.m=2;
 			},
+            RLatHL:function(){ //CB16
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                var newCarry = (N&0x80)?1:0;
+                var newBit = (PThis.Registers.EightBit.f&0x10)?1:0;
+                var newN = ((N<<1)+newBit)&255;
+                PThis.FLAGS.CLEARall();
+                newCarry==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+                if (newN==0) PThis.FLAGS.SETx('z');
+                PThis.Memory.writeByte(address, newN);
+                PThis.Registers.m=4;
+            },
 			RRCn:function(n){ //CB08 CB09 CB0A CB0B CB0C CB0D CB0F 
 				var N = PThis.Registers.EightBit[n];
 				var carryBit = (N&0x01)?1:0;
@@ -882,7 +894,7 @@ var Processor=function(){
 				PThis.Registers.EightBit[n] = newN;
 				PThis.Registers.m=2;
 			},
-			RLatHL: function(){ //CB0E
+			RRCatHL: function(){ //CB0E
 				var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
 				var N = PThis.Memory.readByte(address);
 				var carryBit = (N&0x01)?1:0;
@@ -903,8 +915,59 @@ var Processor=function(){
 				if (newN==0) PThis.FLAGS.SETx('z');
 				PThis.Registers.EightBit[n] = newN;
 				PThis.Registers.m=1;
-			}
-		}
+			},
+            RRatHL:function(){ //CB1E
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                var newCarry = (N&0x01)?1:0;
+                var newBit = (PThis.Registers.EightBit.f&0x10)?1:0;
+                var newN = ((N>>1)+newBit*0x80)&255;
+                PThis.FLAGS.CLEARall();
+                newCarry==1?PThis.FLAGS.SETx('c'):PThis.FLAGS.CLEARx('c');
+                if (newN==0) PThis.FLAGS.SETx('z');
+                PThis.Memory.writeByte(address, newN);
+                PThis.Registers.m=4;
+            }
+		},
+        SHIFT: {
+            SLAn:function(n){ //CB20 CB21 CB22 CB23 CB24 CB25 CB27
+                PThis.FLAGS.CLEARall();
+                if(PThis.Registers.EightBit[n]&0x80) PThis.FLAGS.SETx('c');
+                PThis.Registers.EightBit[n]=(PThis.Registers.EightBit[n]<<1)&255;
+                if(PThis.Registers.EightBit[n]==0) PThis.FLAGS.SETx('z');
+                PThis.Registers.m=2;
+            },
+            SLAatHL:function(){ //CB26
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                PThis.FLAGS.CLEARall();
+                if(N&0x80) PThis.FLAGS.SETx('c');
+                N=(N<<1)&255;
+                if(N==0) PThis.FLAGS.SETx('z');
+                PThis.Memory.writeByte(address, N);
+                PThis.Registers.m=4;
+            },
+            SRAn: function(n){ //CB28 CB29 CB2A CB2B CB2C CB2D CB2F
+                PThis.FLAGS.CLEARall();
+                if(PThis.Registers.EightBit[n]&0x01) PThis.FLAGS.SETx('c');
+                var add = PThis.Registers.EightBit[n]&0x80;
+                PThis.Registers.EightBit[n]=((PThis.Registers.EightBit[n]>>1)+add)&255;
+
+                if(PThis.Registers.EightBit[n] == 0) PThis.FLAGS.SETx('z');
+                PThis.Registers.m=2;
+            },
+            SRAatHL: function(){ //CB2E
+                PThis.FLAGS.CLEARall();
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                if(N&0x01) PThis.FLAGS.SETx('c');
+                var add = N&0x80;
+                N=((N>>1)+add)&255;
+                if(N == 0) PThis.FLAGS.SETx('z');
+                PThis.Memory.writeByte(address, N);
+                PThis.Registers.m=4;
+            }
+        }
 		
 	}
 	
