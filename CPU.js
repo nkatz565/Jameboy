@@ -952,7 +952,6 @@ var Processor=function(){
                 if(PThis.Registers.EightBit[n]&0x01) PThis.FLAGS.SETx('c');
                 var add = PThis.Registers.EightBit[n]&0x80;
                 PThis.Registers.EightBit[n]=((PThis.Registers.EightBit[n]>>1)+add)&255;
-
                 if(PThis.Registers.EightBit[n] == 0) PThis.FLAGS.SETx('z');
                 PThis.Registers.m=2;
             },
@@ -966,10 +965,71 @@ var Processor=function(){
                 if(N == 0) PThis.FLAGS.SETx('z');
                 PThis.Memory.writeByte(address, N);
                 PThis.Registers.m=4;
+            },
+            SRLn: function(n){ //CB38 CB39 CB3A CB3B CB3C CB3D CB3F
+                PThis.FLAGS.CLEARall();
+                if(PThis.Registers.EightBit[n]&0x01) PThis.FLAGS.SETx('c');
+                PThis.Registers.EightBit[n]=((PThis.Registers.EightBit[n]>>1))&0x7F;
+                if(PThis.Registers.EightBit[n] == 0) PThis.FLAGS.SETx('z');
+                PThis.Registers.m=2;
+            },
+            SRLatHL: function(){ //CB3E
+                PThis.FLAGS.CLEARall();
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+
+                if(N&0x01) PThis.FLAGS.SETx('c');
+                N=((N >> 1))&0x7F;
+                if(N == 0) PThis.FLAGS.SETx('z');
+                PThis.Memory.writeByte(address, N);
+
+                PThis.Registers.m=4;
+            }
+
+        },
+        SWAP: {
+            SWAPn: function (n){ //CB30 CB31 CB32 CB33 CB34 CB35 CB37
+                PThis.FLAGS.CLEARall();
+                var lower = (PThis.Registers.EightBit[n] << 4) & 0xF0;
+                var upper = (PThis.Registers.EightBit[n] >>> 4);
+                PThis.Registers.EightBit[n] = lower+upper;
+                if(PThis.Registers.EightBit[n] == 0) PThis.FLAGS.SETx('z');
+                PThis.Registers.m=2;
+            },
+            SWAPatHL: function(){ //CB36
+                PThis.FLAGS.CLEARall();
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                var lower = (N << 4) & 0xF0;
+                var upper = (N >>> 4);
+                N = lower+upper;
+                PThis.Memory.writeByte(address, N);
+                if(N == 0) PThis.FLAGS.SETx('z');
+                PThis.Registers.m=4;
+            }
+        },
+        BIT: {
+            //CB40 CB41 CB42 CB43 CB44 CB45 CB47 CB48 CB49 CB4A CB4B CB4C CB4D CB4F
+            //CB50 CB51 CB52 CB53 CB54 CB55 CB57 CB58 CB59 CB5A CB5B CB5C CB5D CB5F
+            //CB60 CB61 CB62 CB63 CB64 CB65 CB67 CB68 CB69 CB6A CB6B CB6C CB6D CB6F
+            //CB70 CB71 CB72 CB73 CB74 CB75 CB77 CB78 CB79 CB7A CB7B CB7C CB7D CB7F
+            BITn: function (n,bit){
+                var test = PThis.bitToTestCase(bit);
+                (PThis.Registers.EightBit[n]&test)?PThis.FLAGS.CLEARx('z'):PThis.FLAGS.SETx('z');
+                PThis.FLAGS.CLEARx('n');
+                PThis.FLAGS.SETx('h');
+            },
+            BITatHL: function (bit){ //CB46 CB4E CB56 CB5E CB66 CB6E CB76 CB7E
+                var test = PThis.bitToTestCase(bit);
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                (N&test)?PThis.FLAGS.CLEARx('z'):PThis.FLAGS.SETx('z');
+                PThis.FLAGS.CLEARx('n');
+                PThis.FLAGS.SETx('h');
             }
         }
 		
-	}
+	};
 	
     this.FLAGS={
         CLEARall: function(){
@@ -1020,8 +1080,29 @@ var Processor=function(){
             case 'l':
                 return this.Registers.EightBit.l;
         }
+    };
+    this.bitToTestCase= function(bit) {
+        switch (bit) {
+            case 0:
+                return 0x01;
+            case 1:
+                return 0x02;
+            case 2:
+                return 0x04;
+            case 3:
+                return 0x08;
+            case 4:
+                return 0x10;
+            case 5:
+                return 0x20;
+            case 6:
+                return 0x40;
+            case 7:
+                return 0x80;
+        }
     }
-};
+
+}
 var p1 = new Processor();
 
 
