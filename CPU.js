@@ -1018,6 +1018,8 @@ var Processor=function(){
                 (PThis.Registers.EightBit[n]&test)?PThis.FLAGS.CLEARx('z'):PThis.FLAGS.SETx('z');
                 PThis.FLAGS.CLEARx('n');
                 PThis.FLAGS.SETx('h');
+                PThis.Registers.m=2;
+
             },
             BITatHL: function (bit){ //CB46 CB4E CB56 CB5E CB66 CB6E CB76 CB7E
                 var test = PThis.bitToTestCase(bit);
@@ -1026,9 +1028,47 @@ var Processor=function(){
                 (N&test)?PThis.FLAGS.CLEARx('z'):PThis.FLAGS.SETx('z');
                 PThis.FLAGS.CLEARx('n');
                 PThis.FLAGS.SETx('h');
+                PThis.Registers.m=4;
+            }
+        },
+        RES: {
+            RESn: function (n,bit) {
+                //CB80 CB81 CB82 CB83 CB84 CB85 CB87 CB88 CB89 CB8A CB8B CB8C CB8D CB8F
+                //CB90 CB91 CB92 CB93 CB94 CB95 CB97 CB98 CB99 CB9A CB9B CB9C CB9D CB9F
+                //CBA0 CBA1 CBA2 CBA3 CBA4 CBA5 CBA7 CBA8 CBA9 CBAA CBAB CBAC CBAD CBAF
+                //CBB0 CBB1 CBB2 CBB3 CBB4 CBB5 CBB7 CBB8 CBB9 CBBA CBBB CBBC CBBD CBBF
+                var res = PThis.bitToResCase(bit);
+                PThis.Registers.EightBit[n]&=res;
+                PThis.Registers.m=2;
+            },
+            RESatHL: function (bit) {  //CB86 CB8E CB96 CB9E CBA6 CBAE CBB6 CBBE
+                var res = PThis.bitToResCase(bit);
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                N&=res;
+                PThis.Memory.writeByte(address, N);
+                PThis.Registers.m=4;
+            }
+        },
+        SET: {
+            SETn: function (n,bit) {
+                //CBC0 CBC1 CBC2 CBC3 CBC4 CBC5 CBC7 CBC8 CBC9 CBCA CBCB CBCC CBCD CBCF
+                //CBD0 CBD1 CBD2 CBD3 CBD4 CBD5 CBD7 CBD8 CBD9 CBDA CBDB CBDC CBDD CBDF
+                //CBE0 CBE1 CBE2 CBE3 CBE4 CBE5 CBE7 CBE8 CBE9 CBEA CBEB CBEC CBED CBEF
+                //CBF0 CBF1 CBF2 CBF3 CBF4 CBF5 CBF7 CBF8 CBF9 CBFA CBFB CBFC CBFD CBFF
+                var res = PThis.bitToTestCase(bit);
+                PThis.Registers.EightBit[n]|=res;
+                PThis.Registers.m=2;
+            },
+            SETatHL: function (bit) {  //CBC6 CBCE CBD6 CBDE CBE6 CBEE CBF6 CBFE
+                var res = PThis.bitToTestCase(bit);
+                var address = (PThis.Registers.EightBit.h<<8)+PThis.Registers.EightBit.l;
+                var N = PThis.Memory.readByte(address);
+                N|=res;
+                PThis.Memory.writeByte(address, N);
+                PThis.Registers.m=4;
             }
         }
-		
 	};
 	
     this.FLAGS={
@@ -1099,6 +1139,26 @@ var Processor=function(){
                 return 0x40;
             case 7:
                 return 0x80;
+        }
+    }
+    this.bitToResCase= function(bit) {
+        switch (bit) {
+            case 0:
+                return 0xFE;
+            case 1:
+                return 0xFD;
+            case 2:
+                return 0xFB;
+            case 3:
+                return 0xF7;
+            case 4:
+                return 0xEF;
+            case 5:
+                return 0xDF;
+            case 6:
+                return 0xBF;
+            case 7:
+                return 0x7F;
         }
     }
 
