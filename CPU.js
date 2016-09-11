@@ -237,7 +237,7 @@ var Processor=function(){
             if((PThis.Registers.EightBit.a^RegN^RegABefore)&0x10) PThis.FLAGS.SETx('h'); //set half carry
             PThis.Registers.m=2;
 		},
-        ADD8C: function(n){ //87 88 89 8A 8B 8C 8D 8F
+        ADD8C: function(n){ //88 89 8A 8B 8C 8D 8F
             var addC = ((PThis.Registers.EightBit.f)&0x10)?1:0;
             PThis.FLAGS.CLEARall();
             var RegABefore=PThis.get8Reg('a'); 
@@ -689,7 +689,7 @@ var Processor=function(){
             PThis.Memory.writeByte(hl,valueAfter);
             PThis.Registers.m=3;
         },
-        DECsp: function(){ //0B
+        DECsp: function(){ //3B
             PThis.Registers.SixteenBit.sp=(--PThis.Registers.SixteenBit.sp)&0xFFFF;
             PThis.Registers.m=2;
         }
@@ -1202,175 +1202,175 @@ var Processor=function(){
             case 0x1E: return PThis.LOAD.LOAD8IM('e');
             case 0x1F: return PThis.ROTATE.RRA();
 
-            case 0x20:
+            case 0x20: return PThis.JUMP.JUMPrIFcc('nz');
             case 0x21: return PThis.LOAD.LOAD16IM('h','l');
-            case 0x22:
+            case 0x22: return PThis.LOAD.LOADaAThlTHEN(true);
             case 0x23: return PThis.INC.INC16('h','l');
             case 0x24: return PThis.INC.INC8('h');
             case 0x25: return PThis.DEC.DEC8('h');
             case 0x26: return PThis.LOAD.LOAD8IM('h');
-            case 0x27:
-            case 0x28:
+            case 0x27: return PThis.MISC.DAA();
+            case 0x28: return PThis.JUMP.JUMPrIFcc('z');
             case 0x29: return PThis.ADD.ADD16toHL('h','l');
-            case 0x2A:
+            case 0x2A: return PThis.LOAD.LOADhlINTOaTHEN(true);
             case 0x2B: return PThis.DEC.DEC16('h','l');
             case 0x2C: return PThis.INC.INC8('l');
             case 0x2D: return PThis.DEC.DEC8('l');
             case 0x2E: return PThis.LOAD.LOAD8IM('e');
-            case 0x2F:
+            case 0x2F: return PThis.MISC.CPL();
 
-            case 0x30:
+            case 0x30: return PThis.JUMP.JUMPrIFcc('nc');
             case 0x31: return PThis.LOAD.LOAD16IMSP();
-            case 0x32:
-            case 0x33:
-            case 0x34:
-            case 0x35:
-            case 0x36:
-            case 0x37:
-            case 0x38:
-            case 0x39:
-            case 0x3A:
-            case 0x3B:
+            case 0x32: return PThis.LOAD.LOADaAThlTHEN(false);
+            case 0x33: return PThis.INC.INCSP();
+            case 0x34: return PThis.INC.INCatHL();
+            case 0x35: return PThis.DEC.DECatHL();
+            case 0x36: return PThis.LOAD.LOAD8IMatHL();
+            case 0x37: return PThis.MISC.SCF();
+            case 0x38: return PThis.JUMP.JUMPrIFcc('c');
+            case 0x39: return PThis.ADD.ADDSPtoHL();
+            case 0x3A: return PThis.LOAD.LOADhlINTOaTHEN(false);
+            case 0x3B: return PThis.DEC.DECsp();
             case 0x3C: return PThis.INC.INC8('a');
             case 0x3D: return PThis.DEC.DEC8('a');
             case 0x3E: return PThis.LOAD.LOAD8IM('a');
-            case 0x3F:
+            case 0x3F: return PThis.MISC.CCF();
 
-            case 0x40:
-            case 0x41:
-            case 0x42:
-            case 0x43:
-            case 0x44:
-            case 0x45:
-            case 0x46:
-            case 0x47:
-            case 0x48:
-            case 0x49:
-            case 0x4A:
-            case 0x4B:
-            case 0x4C:
-            case 0x4D:
-            case 0x4E:
-            case 0x4F:
+            case 0x40: return PThis.LOAD.LOAD8RtoR('b','b');
+            case 0x41: return PThis.LOAD.LOAD8RtoR('b','c');
+            case 0x42: return PThis.LOAD.LOAD8RtoR('b','d');
+            case 0x43: return PThis.LOAD.LOAD8RtoR('b','e');
+            case 0x44: return PThis.LOAD.LOAD8RtoR('b','h');
+            case 0x45: return PThis.LOAD.LOAD8RtoR('b','l');
+            case 0x46: return PThis.LOAD.LOAD8FROMaddressAThl('b');
+            case 0x47: return PThis.LOAD.LOAD8RtoR('b','a');
+            case 0x48: return PThis.LOAD.LOAD8RtoR('c','b');
+            case 0x49: return PThis.LOAD.LOAD8RtoR('c','c');
+            case 0x4A: return PThis.LOAD.LOAD8RtoR('c','d');
+            case 0x4B: return PThis.LOAD.LOAD8RtoR('c','e');
+            case 0x4C: return PThis.LOAD.LOAD8RtoR('c','h');
+            case 0x4D: return PThis.LOAD.LOAD8RtoR('c','l');
+            case 0x4E: return PThis.LOAD.LOAD8FROMaddressAThl('c');
+            case 0x4F: return PThis.LOAD.LOAD8RtoR('c','a');
 
-            case 0x50:
-            case 0x51:
-            case 0x52:
-            case 0x53:
-            case 0x54:
-            case 0x55:
-            case 0x56:
-            case 0x57:
-            case 0x58:
-            case 0x59:
-            case 0x5A:
-            case 0x5B:
-            case 0x5C:
-            case 0x5D:
-            case 0x5E:
-            case 0x5F:
+            case 0x50: return PThis.LOAD.LOAD8RtoR('d','b');
+            case 0x51: return PThis.LOAD.LOAD8RtoR('d','c');
+            case 0x52: return PThis.LOAD.LOAD8RtoR('d','d');
+            case 0x53: return PThis.LOAD.LOAD8RtoR('d','e');
+            case 0x54: return PThis.LOAD.LOAD8RtoR('d','h');
+            case 0x55: return PThis.LOAD.LOAD8RtoR('d','l');
+            case 0x56: return PThis.LOAD.LOAD8FROMaddressAThl('d');
+            case 0x57: return PThis.LOAD.LOAD8RtoR('d','a');
+            case 0x58: return PThis.LOAD.LOAD8RtoR('e','b');
+            case 0x59: return PThis.LOAD.LOAD8RtoR('e','c');
+            case 0x5A: return PThis.LOAD.LOAD8RtoR('e','d');
+            case 0x5B: return PThis.LOAD.LOAD8RtoR('e','e');
+            case 0x5C: return PThis.LOAD.LOAD8RtoR('e','h');
+            case 0x5D: return PThis.LOAD.LOAD8RtoR('e','l');
+            case 0x5E: return PThis.LOAD.LOAD8FROMaddressAThl('e');
+            case 0x5F: return PThis.LOAD.LOAD8RtoR('e','a');
 
-            case 0x60:
-            case 0x61:
-            case 0x62:
-            case 0x63:
-            case 0x64:
-            case 0x65:
-            case 0x66:
-            case 0x67:
-            case 0x68:
-            case 0x69:
-            case 0x6A:
-            case 0x6B:
-            case 0x6C:
-            case 0x6D:
-            case 0x6E:
-            case 0x6F:
+            case 0x60: return PThis.LOAD.LOAD8RtoR('h','b');
+            case 0x61: return PThis.LOAD.LOAD8RtoR('h','c');
+            case 0x62: return PThis.LOAD.LOAD8RtoR('h','d');
+            case 0x63: return PThis.LOAD.LOAD8RtoR('h','e');
+            case 0x64: return PThis.LOAD.LOAD8RtoR('h','h');
+            case 0x65: return PThis.LOAD.LOAD8RtoR('h','l');
+            case 0x66: return PThis.LOAD.LOAD8FROMaddressAThl('h');
+            case 0x67: return PThis.LOAD.LOAD8RtoR('h','a');
+            case 0x68: return PThis.LOAD.LOAD8RtoR('l','b');
+            case 0x69: return PThis.LOAD.LOAD8RtoR('l','c');
+            case 0x6A: return PThis.LOAD.LOAD8RtoR('l','d');
+            case 0x6B: return PThis.LOAD.LOAD8RtoR('l','e');
+            case 0x6C: return PThis.LOAD.LOAD8RtoR('l','h');
+            case 0x6D: return PThis.LOAD.LOAD8RtoR('l','l');
+            case 0x6E: return PThis.LOAD.LOAD8FROMaddressAThl('l');
+            case 0x6F: return PThis.LOAD.LOAD8RtoR('l','a');
 
-            case 0x70:
-            case 0x71:
-            case 0x72:
-            case 0x73:
-            case 0x74:
-            case 0x75:
-            case 0x76:
-            case 0x77: return PThis.LOAD.LOADaAT16('h','l');
-            case 0x78:
-            case 0x79:
-            case 0x7A:
-            case 0x7B:
-            case 0x7C:
-            case 0x7D:
+            case 0x70: return PThis.LOAD.LOADrATaddressHL('b');
+            case 0x71: return PThis.LOAD.LOADrATaddressHL('c');
+            case 0x72: return PThis.LOAD.LOADrATaddressHL('d');
+            case 0x73: return PThis.LOAD.LOADrATaddressHL('e');
+            case 0x74: return PThis.LOAD.LOADrATaddressHL('h');
+            case 0x75: return PThis.LOAD.LOADrATaddressHL('l');
+            case 0x76: return PThis.HALT=1;
+            case 0x77: return PThis.LOAD.LOADaAT16('a','l');
+            case 0x78: return PThis.LOAD.LOAD8RtoR('a','b');
+            case 0x79: return PThis.LOAD.LOAD8RtoR('a','c');
+            case 0x7A: return PThis.LOAD.LOAD8RtoR('a','d');
+            case 0x7B: return PThis.LOAD.LOAD8RtoR('a','e');
+            case 0x7C: return PThis.LOAD.LOAD8RtoR('a','h');
+            case 0x7D: return PThis.LOAD.LOAD8RtoR('a','l');
             case 0x7E: return PThis.LOAD.LOADfrom16RtoA('h','l');
-            case 0x7F:
+            case 0x7F: return PThis.LOAD.LOAD8RtoR('a','a');
 
-            case 0x80:
-            case 0x81:
-            case 0x82:
-            case 0x83:
-            case 0x84:
-            case 0x85:
-            case 0x86:
-            case 0x87:
-            case 0x88:
-            case 0x89:
-            case 0x8A:
-            case 0x8B:
-            case 0x8C:
-            case 0x8D:
-            case 0x8E:
-            case 0x8F:
+            case 0x80: return PThis.ADD.ADD8('b');
+            case 0x81: return PThis.ADD.ADD8('c');
+            case 0x82: return PThis.ADD.ADD8('d');
+            case 0x83: return PThis.ADD.ADD8('e');
+            case 0x84: return PThis.ADD.ADD8('h');
+            case 0x85: return PThis.ADD.ADD8('l');
+            case 0x86: return PThis.ADD.ADDatHLtoA();
+            case 0x87: return PThis.ADD.ADD8('a');
+            case 0x88: return PThis.ADD.ADD8C('b');
+            case 0x89: return PThis.ADD.ADD8C('c');
+            case 0x8A: return PThis.ADD.ADD8C('d');
+            case 0x8B: return PThis.ADD.ADD8C('e');
+            case 0x8C: return PThis.ADD.ADD8C('h');
+            case 0x8D: return PThis.ADD.ADD8C('l');
+            case 0x8E: return PThis.ADD.ADDatHLtoAC();
+            case 0x8F: return PThis.ADD.ADD8C('a');
 
-            case 0x90:
-            case 0x91:
-            case 0x92:
-            case 0x93:
-            case 0x94:
-            case 0x95:
-            case 0x96:
-            case 0x97:
-            case 0x98:
-            case 0x99:
-            case 0x9A:
-            case 0x9B:
-            case 0x9C:
-            case 0x9D:
-            case 0x9E:
-            case 0x9F:
+            case 0x90: return PThis.SUB.SUB8('b');
+            case 0x91: return PThis.SUB.SUB8('c');
+            case 0x92: return PThis.SUB.SUB8('d');
+            case 0x93: return PThis.SUB.SUB8('e');
+            case 0x94: return PThis.SUB.SUB8('h');
+            case 0x95: return PThis.SUB.SUB8('l');
+            case 0x96: return PThis.SUB.SUBatHLtoA();
+            case 0x97: return PThis.SUB.SUB8('a');
+            case 0x98: return PThis.SUB.SUB8C('b');
+            case 0x99: return PThis.SUB.SUB8C('c');
+            case 0x9A: return PThis.SUB.SUB8C('d');
+            case 0x9B: return PThis.SUB.SUB8C('e');
+            case 0x9C: return PThis.SUB.SUB8C('h');
+            case 0x9D: return PThis.SUB.SUB8C('l');
+            case 0x9E: return PThis.SUB.SUBatHLtoAC();
+            case 0x9F: return PThis.SUB.SUB8C('a');
 
-            case 0xA0:
-            case 0xA1:
-            case 0xA2:
-            case 0xA3:
-            case 0xA4:
-            case 0xA5:
-            case 0xA6:
-            case 0xA7:
-            case 0xA8:
-            case 0xA9:
-            case 0xAA:
-            case 0xAB:
-            case 0xAC:
-            case 0xAD:
-            case 0xAE:
-            case 0xAF:
+            case 0xA0: return PThis.AND.ANDN('b');
+            case 0xA1: return PThis.AND.ANDN('c');
+            case 0xA2: return PThis.AND.ANDN('d');
+            case 0xA3: return PThis.AND.ANDN('e');
+            case 0xA4: return PThis.AND.ANDN('h');
+            case 0xA5: return PThis.AND.ANDN('l');
+            case 0xA6: return PThis.AND.ANDHL();
+            case 0xA7: return PThis.AND.ANDN('a');
+            case 0xA8: return PThis.XOR.XORN('b');
+            case 0xA9: return PThis.XOR.XORN('c');
+            case 0xAA: return PThis.XOR.XORN('d');
+            case 0xAB: return PThis.XOR.XORN('e');
+            case 0xAC: return PThis.XOR.XORN('h');
+            case 0xAD: return PThis.XOR.XORN('l');
+            case 0xAE: return PThis.XOR.XORHL();
+            case 0xAF: return PThis.XOR.XORN('a');
 
-            case 0xB0:
-            case 0xB1:
-            case 0xB2:
-            case 0xB3:
-            case 0xB4:
-            case 0xB5:
-            case 0xB6:
-            case 0xB7:
-            case 0xB8:
-            case 0xB9:
-            case 0xBA:
-            case 0xBB:
-            case 0xBC:
-            case 0xBD:
-            case 0xBE:
-            case 0xBF:
+            case 0xB0: return PThis.OR.ORN('b');
+            case 0xB1: return PThis.OR.ORN('c');
+            case 0xB2: return PThis.OR.ORN('d');
+            case 0xB3: return PThis.OR.ORN('e');
+            case 0xB4: return PThis.OR.ORN('h');
+            case 0xB5: return PThis.OR.ORN('l');
+            case 0xB6: return PThis.OR.ORHL();
+            case 0xB7: return PThis.OR.ORN('a');
+            case 0xB8: return PThis.CP.CPN('b');
+            case 0xB9: return PThis.CP.CPN('c');
+            case 0xBA: return PThis.CP.CPN('d');
+            case 0xBB: return PThis.CP.CPN('e');
+            case 0xBC: return PThis.CP.CPN('h');
+            case 0xBD: return PThis.CP.CPN('l');
+            case 0xBE: return PThis.CP.CPHL();
+            case 0xBF: return PThis.CP.CPN('a');
 
             case 0xC0:
             case 0xC1:
