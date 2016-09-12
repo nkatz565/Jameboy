@@ -840,6 +840,7 @@ var Processor=function(){
 		PThis.Registers.SixteenBit.pc &= 65535;
 		PThis.Memory.readByte(PThis.Registers.SixteenBit.pc); 
 		//MAPPING HERE
+        PThis.Registers.m++; //mapping takes a cycle in addition to whatever gets mapped
 	}
 	
 	this.CBtable = {
@@ -1372,73 +1373,73 @@ var Processor=function(){
             case 0xBE: return PThis.CP.CPHL();
             case 0xBF: return PThis.CP.CPN('a');
 
-            case 0xC0:
-            case 0xC1:
-            case 0xC2:
-            case 0xC3:
-            case 0xC4:
-            case 0xC5:
-            case 0xC6:
-            case 0xC7:
-            case 0xC8:
-            case 0xC9:
-            case 0xCA:
-            case 0xCB:
-            case 0xCC:
-            case 0xCD:
-            case 0xCE:
-            case 0xCF:
+            case 0xC0: return PThis.JUMP.RETifCC('nz');
+            case 0xC1: return PThis.STACK.POP('b','c');
+            case 0xC2: return PThis.JUMP.JUMPa16if('nz');
+            case 0xC3: return PThis.JUMP.JUMPa16();
+            case 0xC4: return PThis.MISC.CALLif('nz');
+            case 0xC5: return PThis.STACK.PUSH('b','c');
+            case 0xC6: return PThis.ADD.ADDd8();
+            case 0xC7: return PThis.RESET.RST(0x00);
+            case 0xC8: return PThis.JUMP.RETifCC('z');
+            case 0xC9: return PThis.JUMP.RET();
+            case 0xCA: return PThis.JUMP.JUMPa16if('z');
+            case 0xCB: return PThis.CB();
+            case 0xCC: return PThis.MISC.CALLif('z');
+            case 0xCD: return PThis.MISC.CALL();
+            case 0xCE: return PThis.ADD.ADDd8C();
+            case 0xCF: return PThis.RESET.RST(0x08);
 
-            case 0xD0:
-            case 0xD1:
-            case 0xD2:
-            case 0xD3:
-            case 0xD4:
-            case 0xD5:
-            case 0xD6:
-            case 0xD7:
-            case 0xD8:
-            case 0xD9:
-            case 0xDA:
-            case 0xDB:
-            case 0xDC:
-            case 0xDD:
-            case 0xDE:
-            case 0xDF:
+            case 0xD0: return PThis.JUMP.RETifCC('nc');
+            case 0xD1: return PThis.STACK.POP('d','e');
+            case 0xD2: return PThis.JUMP.JUMPa16if('nc');
+            case 0xD3: return PThis.MISC.CALLif('nc');
+            case 0xD4: return console.log('no command');
+            case 0xD5: return PThis.STACK.PUSH('d','e');
+            case 0xD6: return PThis.SUB.SUBd8();
+            case 0xD7: return PThis.RESET.RST(0x10);
+            case 0xD8: return PThis.JUMP.RETifCC('c');
+            case 0xD9: return PThis.JUMP.RETI();
+            case 0xDA: return PThis.JUMP.JUMPa16if('c');
+            case 0xDB: return console.log('no command');
+            case 0xDC: return PThis.MISC.CALLif('c');
+            case 0xDD: return console.log('no command');
+            case 0xDE: return PThis.SUB.SUBd8C();
+            case 0xDF: return PThis.RESET.RST(0x18);
 
-            case 0xE0:
-            case 0xE1:
-            case 0xE2:
-            case 0xE3:
-            case 0xE4:
-            case 0xE5:
-            case 0xE6:
-            case 0xE7:
-            case 0xE8:
-            case 0xE9:
-            case 0xEA:
-            case 0xEB:
-            case 0xEC:
-            case 0xED:
-            case 0xEE:
-            case 0xEF:
+            case 0xE0: return PThis.LOAD.LDHto();
+            case 0xE1: return PThis.STACK.POP('h','l');
+            case 0xE2: return PThis.LOAD.LDCto();
+            case 0xE3: return console.log('no command');
+            case 0xE4: return console.log('no command');
+            case 0xE5: return PThis.STACK.PUSH('h','l');
+            case 0xE6: return PThis.AND.ANDd8();
+            case 0xE7: return PThis.RESET.RST(0x20);
+            case 0xE8: return PThis.ADD.ADDspn();
+            case 0xE9: return PThis.JUMP.JUMPhl();
+            case 0xEA: return PThis.LOAD.LOADaATimm();
+            case 0xEB: return console.log('no command');
+            case 0xEC: return console.log('no command');
+            case 0xED: return console.log('no command');
+            case 0xEE: return PThis.XOR.XORd8();
+            case 0xEF: return PThis.RESET.RST(0x28);
 
-            case 0xF0:
-            case 0xF1:
-            case 0xF2:
+            case 0xF0: return PThis.LOAD.LDHfrom();
+            case 0xF1: return PThis.STACK.POP('a','f');
+            case 0xF2: return PThis.LOAD.LDCfrom();
             case 0xF3:
-            case 0xF4:
-            case 0xF5:
-            case 0xF6:
-            case 0xF7:
-            case 0xF8:
-            case 0xF9:
-            case 0xFA:
+            case 0xF4: return console.log('no command');
+            case 0xF5: return PThis.STACK.PUSH('a','f');
+            case 0xF6: return PThis.OR.ORd8();
+            case 0xF7: return PThis.RESET.RST(0x30);
+            case 0xF8: return PThis.LOAD.LOADtoHLspPLUSn();
+            case 0xF9: return PThis.LOAD.LOADtoSPhl();
+            case 0xFA: return PThis.LOAD.LOADimmTOa();
             case 0xFB:
-            case 0xFC:
-            case 0xFD:
-            case 0xFE:
-            case 0xFF:
+            case 0xFC: return console.log('no command');
+            case 0xFD: return console.log('no command');
+            case 0xFE: return console.CP.CPd8();
+            case 0xFF: return PThis.RESET.RST(0x38);
 
         }
     }
