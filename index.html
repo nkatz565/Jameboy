@@ -1,12 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <script   src="https://code.jquery.com/jquery-3.1.0.min.js"   integrity="sha256-cCueBR6CsyA4/9szpPfrX3s49M9vUU5BgtiJj06wt/s="   crossorigin="anonymous"></script>
     <script src="filereader.js"></script>
     <script src="CPU.js"></script>
     <script src="Helper.js"></script>
+    <link rel="stylesheet" type="text/css" href="style.css">
     <meta charset="UTF-8">
     <title></title>
 </head>
 <body>
+<button class="step">Step</button>
+<button class="update" onclick="debug()">update</button>
+<p class="debug">opcode: </p><p class="debug opcode"></p> <br /><br />
+
+<p class="debug">a: </p><p class="reg-a debug"></p> <br />
+<p class="debug">b: </p><p class="reg-b debug"></p> <br />
+<p class="debug">c: </p><p class="reg-c debug"></p> <br />
+<p class="debug">d: </p><p class="reg-d debug"></p> <br />
+<p class="debug">e: </p><p class="reg-e debug"></p> <br />
+<p class="debug">h: </p><p class="reg-h debug"></p> <br />
+<p class="debug">l: </p><p class="reg-l debug"></p> <br />
+<p class="debug">flags: </p> <br />
+<p class="debug">zero: </p><p class="debug zero"></p> <br />
+<p class="debug">sub: </p><p class="debug subtraction"></p> <br />
+<p class="debug">half: </p><p class="debug half-carry"></p> <br />
+<p class="debug">carry: </p><p class="debug carry"></p> <br />
+ <br />
 </body>
 </html>

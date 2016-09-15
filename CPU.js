@@ -13,12 +13,55 @@ var Processor=function(){
         m:0, //cycles used
         IE:0 //interupts enabled register. Determines which interupts are currently allowed*/
     };
-	this.IME=false; //MASTER INTERUPT ENABLE. ALLOWS INTERUPTS TO OCCUR.
-	this.IF=false; //interupt flags. Determines if an interupt must be processed
-	this.exec = function(){
+	this.IME=true; //MASTER INTERUPT ENABLE. ALLOWS INTERUPTS TO OCCUR.
+	this.IF={
+        interupt:false,
+        VBlank:false,
+        LCDS:false,
+        TIMER:false,
+        Button:false
+    }; //interupt flags. Determines if an interupt must be processed
+
+    this.clock=0;
+    this.graphicsTimings={
+        ly:0
+    }
+	this.run = function(){
+        if(PThis.Registers.SixteenBit.pc==0x27ea){
+            console.log('break');
+        }
+        PThis.map(PThis.Memory.readByte(PThis.Registers.SixteenBit.pc));
+        PThis.Registers.SixteenBit.pc++;
+        PThis.Registers.SixteenBit.pc &= 65535;
+        PThis.clock+=PThis.Registers.m;
+        PThis.updateTiming();
+        if(PThis.IME && PThis.IF.interupt){
+            PThis.interruptHandler();
+        }
+        //debug();
 		//run function
 		//increment pc after
 	}
+    this.interruptHandler = function(){
+        var enabled = PThis.Memory.readByte(0xFFFF);
+
+        PThis.IF.interupt=false;
+        if(PThis.IF.VBlank && (enabled&&0x01)){
+            PThis.IF.VBlank=false;
+            PThis.IME=false;
+            PThis.Registers.SixteenBit.pc=0x0040;
+        }
+    }
+
+    this.updateTiming = function(){
+        PThis.graphicsTimings.ly=(Math.floor(PThis.clock*4)/456);
+        if((PThis.clock *4) >= 70224){
+            PThis.clock=0;
+            PThis.IF.interupt=true;
+            PThis.IF.VBlank=true;
+        }
+    }
+
     this.Memory={
         bios: [
             0x31, 0xFE, 0xFF, 0xAF, 0x21, 0xFF, 0x9F, 0x32, 0xCB, 0x7C, 0x20, 0xFB, 0x21, 0x26, 0xFF, 0x0E,
@@ -50,11 +93,11 @@ var Processor=function(){
                     if(!PThis.Memory.biosDone){
                         return PThis.Memory.bios[address];
                     }
-                    return PThis.Memory.rom[address];
+                    return PThis.Memory.rom.charCodeAt(address)
                 case 0x1: case 0x2: case 0x3:
-                    return PThis.Memory.rom[address];
+                    return PThis.Memory.rom.charCodeAt(address)
                 case 0x4: case 0x5: case 0x6: case 0x7:
-                    return PThis.Memory.rom[address];
+                    return PThis.Memory.rom.charCodeAt(address)
                 case 0x8: case 0x9:
                     return PThis.Memory.graphicsRam[address /*& 1FFFF*/];
                 case 0xA: case 0xB:
@@ -67,6 +110,9 @@ var Processor=function(){
                         if(address < 0xFEA0){
                             //return oam
                         }
+                        if(address==0xFF44){
+                            return PThis.graphicsTimings.ly;
+                        }
                         return 0; //all other oam is 0
                     }
                     else if(mask = 0xF00){
@@ -77,6 +123,7 @@ var Processor=function(){
                         if(address > 0xFF80){
                             return PThis.Memory.zeroPageRam[address];
                         }
+
                     }
                     else{
                         return PThis.Memory.workingRam[address];
@@ -84,7 +131,9 @@ var Processor=function(){
             }
         },
         readWord: function (address){
-            return PThis.Memory.readByte(address) + (PThis.Memory.readByte(address+1)<<8); //read and concatenate memory at address x and x+1
+            var toReturn = PThis.Memory.readByte(address) + (PThis.Memory.readByte(address+1)<<8); //read and concatenate memory at address x and x+1
+            PThis.Registers.SixteenBit.pc+=1;
+            return toReturn;
         },
         writeByte: function(address, value){
             switch(address>>12) {
@@ -101,6 +150,9 @@ var Processor=function(){
                     if(mask = 0xE00){
                     }
                     else if(mask = 0xF00){
+                        if(address==0xFF44){
+                            PThis.graphicsTimings.ly=value;
+                        }
                     }
                     else{
                         PThis.Memory.workingRam[address]=value;
@@ -179,6 +231,7 @@ var Processor=function(){
 			PThis.Registers.SixteenBit.pc++;
 			PThis.Memory.writeWord(PThis.Registers.SixteenBit.sp, PThis.Registers.SixteenBit.pc+2);
 			PThis.Registers.SixteenBit.pc=PThis.Memory.readWord(PThis.Registers.SixteenBit.pc);
+            PThis.Registers.SixteenBit.pc-=1; //adjusting for the generalized read function
             PThis.Registers.m=3;
 		},
 		CALLif: function(x){ //C4 CC D4 DC
@@ -536,13 +589,14 @@ var Processor=function(){
             PThis.Registers.m=2;
         },
         LOAD16IM: function (dest1,dest2){ //only use combinations of BC, DE, HL. 01 11 21
-            PThis.Registers.EightBit[dest2]=PThis.Memory.readByte(++(PThis.Registers.SixteenBit.pc));
-            PThis.Registers.EightBit[dest1]=PThis.Memory.readByte(++(PThis.Registers.SixteenBit.pc));
+            PThis.Registers.SixteenBit.pc++;
+            PThis.Registers.EightBit[dest2]=PThis.Memory.readByte(PThis.Registers.SixteenBit.pc);
+            PThis.Registers.EightBit[dest1]=PThis.Memory.readByte(PThis.Registers.SixteenBit.pc+1);
+            PThis.Registers.SixteenBit.pc++;
             PThis.Registers.m=3;
         },
         LOAD16IMSP: function(){ //31
             PThis.Registers.SixteenBit.sp=PThis.Memory.readWord(++PThis.Registers.SixteenBit.pc);
-            PThis.Registers.SixteenBit.pc+=2;
             PThis.Registers.m=3;
         },
         LOADaAT16: function (dest1, dest2) { //only use combinations of BC, DE, HL. 02 12 77
@@ -553,7 +607,6 @@ var Processor=function(){
             var address = PThis.Memory.readWord(++(PThis.Registers.SixteenBit.pc));
             PThis.Memory.writeByte(address,(PThis.Registers.SixteenBit.sp)&0xFF); //write lower 8 bits of SP at a16
             PThis.Memory.writeByte(address+1,(PThis.Registers.SixteenBit.sp)>>8); //write higher 8 bits of SP at a16+1
-            PThis.Registers.SixteenBit.pc++;
             PThis.Registers.m=5;
         },
         LOADaAThlTHEN: function (INC){ //set INC to true to increment hl, and to false to decrement it. 22, 32
@@ -838,8 +891,8 @@ var Processor=function(){
 	this.CB = function(){ //CB UNFINISHED
 		PThis.Registers.SixteenBit.pc++;
 		PThis.Registers.SixteenBit.pc &= 65535;
-		PThis.Memory.readByte(PThis.Registers.SixteenBit.pc); 
-		//MAPPING HERE
+		opcode=PThis.Memory.readByte(PThis.Registers.SixteenBit.pc);
+        PThis.CBmap(opcode);
         PThis.Registers.m++; //mapping takes a cycle in addition to whatever gets mapped
 	}
 	
@@ -1438,288 +1491,289 @@ var Processor=function(){
             case 0xFB:
             case 0xFC: return console.log('no command');
             case 0xFD: return console.log('no command');
-            case 0xFE: return console.CP.CPd8();
+            case 0xFE: return PThis.CP.CPd8();
             case 0xFF: return PThis.RESET.RST(0x38);
 
         }
     }
+
     this.CBmap = function(opcode){
         switch(opcode){
-            case 0x00:
-            case 0x01:
-            case 0x02:
-            case 0x03:
-            case 0x04:
-            case 0x05:
-            case 0x06:
-            case 0x07:
-            case 0x08:
-            case 0x09:
-            case 0x0A:
-            case 0x0B:
-            case 0x0C:
-            case 0x0D:
-            case 0x0E:
-            case 0x0F:
+            case 0x00: return PThis.CBtable.ROTATE.RLCn('b');
+            case 0x01: return PThis.CBtable.ROTATE.RLCn('c');
+            case 0x02: return PThis.CBtable.ROTATE.RLCn('d');
+            case 0x03: return PThis.CBtable.ROTATE.RLCn('e');
+            case 0x04: return PThis.CBtable.ROTATE.RLCn('h');
+            case 0x05: return PThis.CBtable.ROTATE.RLCn('l');
+            case 0x06: return PThis.CBtable.ROTATE.RLCatHL();
+            case 0x07: return PThis.CBtable.ROTATE.RLCn('a');
+            case 0x08: return PThis.CBtable.ROTATE.RRCn('b');
+            case 0x09: return PThis.CBtable.ROTATE.RRCn('c');
+            case 0x0A: return PThis.CBtable.ROTATE.RRCn('d');
+            case 0x0B: return PThis.CBtable.ROTATE.RRCn('e');
+            case 0x0C: return PThis.CBtable.ROTATE.RRCn('h');
+            case 0x0D: return PThis.CBtable.ROTATE.RRCn('l');
+            case 0x0E: return PThis.CBtable.ROTATE.RRCatHL();
+            case 0x0F: return PThis.CBtable.ROTATE.RRCn('a');
 
-            case 0x10:
-            case 0x11:
-            case 0x12:
-            case 0x13:
-            case 0x14:
-            case 0x15:
-            case 0x16:
-            case 0x17:
-            case 0x18:
-            case 0x19:
-            case 0x1A:
-            case 0x1B:
-            case 0x1C:
-            case 0x1D:
-            case 0x1E:
-            case 0x1F:
+            case 0x10: return PThis.CBtable.ROTATE.RLn('b');
+            case 0x11: return PThis.CBtable.ROTATE.RLn('c');
+            case 0x12: return PThis.CBtable.ROTATE.RLn('d');
+            case 0x13: return PThis.CBtable.ROTATE.RLn('e');
+            case 0x14: return PThis.CBtable.ROTATE.RLn('h');
+            case 0x15: return PThis.CBtable.ROTATE.RLn('l');
+            case 0x16: return PThis.CBtable.ROTATE.RLatHL();
+            case 0x17: return PThis.CBtable.ROTATE.RLn('b');
+            case 0x18: return PThis.CBtable.ROTATE.RRn('b');
+            case 0x19: return PThis.CBtable.ROTATE.RRn('c');
+            case 0x1A: return PThis.CBtable.ROTATE.RRn('d');
+            case 0x1B: return PThis.CBtable.ROTATE.RRn('e');
+            case 0x1C: return PThis.CBtable.ROTATE.RRn('h');
+            case 0x1D: return PThis.CBtable.ROTATE.RRn('l');
+            case 0x1E: return PThis.CBtable.ROTATE.RRatHL();
+            case 0x1F: return PThis.CBtable.ROTATE.RRn('a');
 
-            case 0x20:
-            case 0x21:
-            case 0x22:
-            case 0x23:
-            case 0x24:
-            case 0x25:
-            case 0x26:
-            case 0x27:
-            case 0x28:
-            case 0x29:
-            case 0x2A:
-            case 0x2B:
-            case 0x2C:
-            case 0x2D:
-            case 0x2E:
-            case 0x2F:
+            case 0x20: return PThis.CBtable.SHIFT.SLAn('b');
+            case 0x21: return PThis.CBtable.SHIFT.SLAn('c');
+            case 0x22: return PThis.CBtable.SHIFT.SLAn('d');
+            case 0x23: return PThis.CBtable.SHIFT.SLAn('e');
+            case 0x24: return PThis.CBtable.SHIFT.SLAn('h');
+            case 0x25: return PThis.CBtable.SHIFT.SLAn('l');
+            case 0x26: return PThis.CBtable.SHIFT.SLAatHL();
+            case 0x27: return PThis.CBtable.SHIFT.SLAn('a');
+            case 0x28: return PThis.CBtable.SHIFT.SRAn('b');
+            case 0x29: return PThis.CBtable.SHIFT.SRAn('c');
+            case 0x2A: return PThis.CBtable.SHIFT.SRAn('d');
+            case 0x2B: return PThis.CBtable.SHIFT.SRAn('e');
+            case 0x2C: return PThis.CBtable.SHIFT.SRAn('h');
+            case 0x2D: return PThis.CBtable.SHIFT.SRAn('l');
+            case 0x2E: return PThis.CBtable.SHIFT.SRAatHL();
+            case 0x2F: return PThis.CBtable.SHIFT.SRAn('a');
 
-            case 0x30:
-            case 0x31:
-            case 0x32:
-            case 0x33:
-            case 0x34:
-            case 0x35:
-            case 0x36:
-            case 0x37:
-            case 0x38:
-            case 0x39:
-            case 0x3A:
-            case 0x3B:
-            case 0x3C:
-            case 0x3D:
-            case 0x3E:
-            case 0x3F:
+            case 0x30: return PThis.CBtable.SWAP.SWAPn('b');
+            case 0x31: return PThis.CBtable.SWAP.SWAPn('c');
+            case 0x32: return PThis.CBtable.SWAP.SWAPn('d');
+            case 0x33: return PThis.CBtable.SWAP.SWAPn('e');
+            case 0x34: return PThis.CBtable.SWAP.SWAPn('h');
+            case 0x35: return PThis.CBtable.SWAP.SWAPn('l');
+            case 0x36: return PThis.CBtable.SWAP.SWAPatHL();
+            case 0x37: return PThis.CBtable.SWAP.SWAPn('a');
+            case 0x38: return PThis.CBtable.SHIFT.SRLn('b');
+            case 0x39: return PThis.CBtable.SHIFT.SRLn('c');
+            case 0x3A: return PThis.CBtable.SHIFT.SRLn('d');
+            case 0x3B: return PThis.CBtable.SHIFT.SRLn('e');
+            case 0x3C: return PThis.CBtable.SHIFT.SRLn('h');
+            case 0x3D: return PThis.CBtable.SHIFT.SRLn('l');
+            case 0x3E: return PThis.CBtable.SHIFT.SRLatHL();
+            case 0x3F: return PThis.CBtable.SHIFT.SRLn('a');
 
-            case 0x40:
-            case 0x41:
-            case 0x42:
-            case 0x43:
-            case 0x44:
-            case 0x45:
-            case 0x46:
-            case 0x47:
-            case 0x48:
-            case 0x49:
-            case 0x4A:
-            case 0x4B:
-            case 0x4C:
-            case 0x4D:
-            case 0x4E:
-            case 0x4F:
+            case 0x40: return PThis.CBtable.BIT.BITn('b',0);
+            case 0x41: return PThis.CBtable.BIT.BITn('c',0);
+            case 0x42: return PThis.CBtable.BIT.BITn('d',0);
+            case 0x43: return PThis.CBtable.BIT.BITn('e',0);
+            case 0x44: return PThis.CBtable.BIT.BITn('h',0);
+            case 0x45: return PThis.CBtable.BIT.BITn('l',0);
+            case 0x46: return PThis.CBtable.BIT.BITatHL(0);
+            case 0x47: return PThis.CBtable.BIT.BITn('a',0);
+            case 0x48: return PThis.CBtable.BIT.BITn('b',1);
+            case 0x49: return PThis.CBtable.BIT.BITn('c',1);
+            case 0x4A: return PThis.CBtable.BIT.BITn('d',1);
+            case 0x4B: return PThis.CBtable.BIT.BITn('e',1);
+            case 0x4C: return PThis.CBtable.BIT.BITn('h',1);
+            case 0x4D: return PThis.CBtable.BIT.BITn('l',1);
+            case 0x4E: return PThis.CBtable.BIT.BITatHL(1);
+            case 0x4F: return PThis.CBtable.BIT.BITn('a',1);
 
-            case 0x50:
-            case 0x51:
-            case 0x52:
-            case 0x53:
-            case 0x54:
-            case 0x55:
-            case 0x56:
-            case 0x57:
-            case 0x58:
-            case 0x59:
-            case 0x5A:
-            case 0x5B:
-            case 0x5C:
-            case 0x5D:
-            case 0x5E:
-            case 0x5F:
+            case 0x50: return PThis.CBtable.BIT.BITn('b',2);
+            case 0x51: return PThis.CBtable.BIT.BITn('c',2);
+            case 0x52: return PThis.CBtable.BIT.BITn('d',2);
+            case 0x53: return PThis.CBtable.BIT.BITn('e',2);
+            case 0x54: return PThis.CBtable.BIT.BITn('h',2);
+            case 0x55: return PThis.CBtable.BIT.BITn('l',2);
+            case 0x56: return PThis.CBtable.BIT.BITatHL(2);
+            case 0x57: return PThis.CBtable.BIT.BITn('a',2);
+            case 0x58: return PThis.CBtable.BIT.BITn('b',3);
+            case 0x59: return PThis.CBtable.BIT.BITn('c',3);
+            case 0x5A: return PThis.CBtable.BIT.BITn('d',3);
+            case 0x5B: return PThis.CBtable.BIT.BITn('e',3);
+            case 0x5C: return PThis.CBtable.BIT.BITn('h',3);
+            case 0x5D: return PThis.CBtable.BIT.BITn('l',3);
+            case 0x5E: return PThis.CBtable.BIT.BITatHL(3);
+            case 0x5F: return PThis.CBtable.BIT.BITn('a',3);
 
-            case 0x60:
-            case 0x61:
-            case 0x62:
-            case 0x63:
-            case 0x64:
-            case 0x65:
-            case 0x66:
-            case 0x67:
-            case 0x68:
-            case 0x69:
-            case 0x6A:
-            case 0x6B:
-            case 0x6C:
-            case 0x6D:
-            case 0x6E:
-            case 0x6F:
+            case 0x60: return PThis.CBtable.BIT.BITn('b',4);
+            case 0x61: return PThis.CBtable.BIT.BITn('c',4);
+            case 0x62: return PThis.CBtable.BIT.BITn('d',4);
+            case 0x63: return PThis.CBtable.BIT.BITn('e',4);
+            case 0x64: return PThis.CBtable.BIT.BITn('h',4);
+            case 0x65: return PThis.CBtable.BIT.BITn('l',4);
+            case 0x66: return PThis.CBtable.BIT.BITatHL(4);
+            case 0x67: return PThis.CBtable.BIT.BITn('a',4);
+            case 0x68: return PThis.CBtable.BIT.BITn('b',5);
+            case 0x69: return PThis.CBtable.BIT.BITn('c',5);
+            case 0x6A: return PThis.CBtable.BIT.BITn('d',5);
+            case 0x6B: return PThis.CBtable.BIT.BITn('e',5);
+            case 0x6C: return PThis.CBtable.BIT.BITn('h',5);
+            case 0x6D: return PThis.CBtable.BIT.BITn('l',5);
+            case 0x6E: return PThis.CBtable.BIT.BITatHL(5);
+            case 0x6F: return PThis.CBtable.BIT.BITn('a',5);
 
-            case 0x70:
-            case 0x71:
-            case 0x72:
-            case 0x73:
-            case 0x74:
-            case 0x75:
-            case 0x76:
-            case 0x77:
-            case 0x78:
-            case 0x79:
-            case 0x7A:
-            case 0x7B:
-            case 0x7C:
-            case 0x7D:
-            case 0x7E:
-            case 0x7F:
+            case 0x70: return PThis.CBtable.BIT.BITn('b',6);
+            case 0x71: return PThis.CBtable.BIT.BITn('c',6);
+            case 0x72: return PThis.CBtable.BIT.BITn('d',6);
+            case 0x73: return PThis.CBtable.BIT.BITn('e',6);
+            case 0x74: return PThis.CBtable.BIT.BITn('h',6);
+            case 0x75: return PThis.CBtable.BIT.BITn('l',6);
+            case 0x76: return PThis.CBtable.BIT.BITatHL(6);
+            case 0x77: return PThis.CBtable.BIT.BITn('a',6);
+            case 0x78: return PThis.CBtable.BIT.BITn('b',7);
+            case 0x79: return PThis.CBtable.BIT.BITn('c',7);
+            case 0x7A: return PThis.CBtable.BIT.BITn('d',7);
+            case 0x7B: return PThis.CBtable.BIT.BITn('e',7);
+            case 0x7C: return PThis.CBtable.BIT.BITn('h',7);
+            case 0x7D: return PThis.CBtable.BIT.BITn('l',7);
+            case 0x7E: return PThis.CBtable.BIT.BITatHL(7);
+            case 0x7F: return PThis.CBtable.BIT.BITn('a',7);
+            
+            case 0x80: return PThis.CBtable.BIT.BITn('b',0);
+            case 0x81: return PThis.CBtable.BIT.BITn('c',0);
+            case 0x82: return PThis.CBtable.BIT.BITn('d',0);
+            case 0x83: return PThis.CBtable.BIT.BITn('e',0);
+            case 0x84: return PThis.CBtable.BIT.BITn('h',0);
+            case 0x85: return PThis.CBtable.BIT.BITn('l',0);
+            case 0x86: return PThis.CBtable.BIT.BITatHL(0);
+            case 0x87: return PThis.CBtable.BIT.BITn('a',0);
+            case 0x88: return PThis.CBtable.BIT.BITn('b',1);
+            case 0x89: return PThis.CBtable.BIT.BITn('c',1);
+            case 0x8A: return PThis.CBtable.BIT.BITn('d',1);
+            case 0x8B: return PThis.CBtable.BIT.BITn('e',1);
+            case 0x8C: return PThis.CBtable.BIT.BITn('h',1);
+            case 0x8D: return PThis.CBtable.BIT.BITn('l',1);
+            case 0x8E: return PThis.CBtable.BIT.BITatHL(1);
+            case 0x8F: return PThis.CBtable.BIT.BITn('a',1);
 
-            case 0x80:
-            case 0x81:
-            case 0x82:
-            case 0x83:
-            case 0x84:
-            case 0x85:
-            case 0x86:
-            case 0x87:
-            case 0x88:
-            case 0x89:
-            case 0x8A:
-            case 0x8B:
-            case 0x8C:
-            case 0x8D:
-            case 0x8E:
-            case 0x8F:
+            case 0x90: return PThis.CBtable.RES.RESn('b',2);
+            case 0x91: return PThis.CBtable.RES.RESn('c',2);
+            case 0x92: return PThis.CBtable.RES.RESn('d',2);
+            case 0x93: return PThis.CBtable.RES.RESn('e',2);
+            case 0x94: return PThis.CBtable.RES.RESn('h',2);
+            case 0x95: return PThis.CBtable.RES.RESn('l',2);
+            case 0x96: return PThis.CBtable.RES.RESatHL(2);
+            case 0x97: return PThis.CBtable.RES.RESn('a',2);
+            case 0x98: return PThis.CBtable.RES.RESn('b',3);
+            case 0x99: return PThis.CBtable.RES.RESn('c',3);
+            case 0x9A: return PThis.CBtable.RES.RESn('d',3);
+            case 0x9B: return PThis.CBtable.RES.RESn('e',3);
+            case 0x9C: return PThis.CBtable.RES.RESn('h',3);
+            case 0x9D: return PThis.CBtable.RES.RESn('l',3);
+            case 0x9E: return PThis.CBtable.RES.RESatHL(3);
+            case 0x9F: return PThis.CBtable.RES.RESn('a',3);
 
-            case 0x90:
-            case 0x91:
-            case 0x92:
-            case 0x93:
-            case 0x94:
-            case 0x95:
-            case 0x96:
-            case 0x97:
-            case 0x98:
-            case 0x99:
-            case 0x9A:
-            case 0x9B:
-            case 0x9C:
-            case 0x9D:
-            case 0x9E:
-            case 0x9F:
+            case 0xA0: return PThis.CBtable.RES.RESn('b',4);
+            case 0xA1: return PThis.CBtable.RES.RESn('c',4);
+            case 0xA2: return PThis.CBtable.RES.RESn('d',4);
+            case 0xA3: return PThis.CBtable.RES.RESn('e',4);
+            case 0xA4: return PThis.CBtable.RES.RESn('h',4);
+            case 0xA5: return PThis.CBtable.RES.RESn('l',4);
+            case 0xA6: return PThis.CBtable.RES.RESatHL(4);
+            case 0xA7: return PThis.CBtable.RES.RESn('a',4);
+            case 0xA8: return PThis.CBtable.RES.RESn('b',5);
+            case 0xA9: return PThis.CBtable.RES.RESn('c',5);
+            case 0xAA: return PThis.CBtable.RES.RESn('d',5);
+            case 0xAB: return PThis.CBtable.RES.RESn('e',5);
+            case 0xAC: return PThis.CBtable.RES.RESn('h',5);
+            case 0xAD: return PThis.CBtable.RES.RESn('l',5);
+            case 0xAE: return PThis.CBtable.RES.RESatHL(5);
+            case 0xAF: return PThis.CBtable.RES.RESn('a',5);
 
-            case 0xA0:
-            case 0xA1:
-            case 0xA2:
-            case 0xA3:
-            case 0xA4:
-            case 0xA5:
-            case 0xA6:
-            case 0xA7:
-            case 0xA8:
-            case 0xA9:
-            case 0xAA:
-            case 0xAB:
-            case 0xAC:
-            case 0xAD:
-            case 0xAE:
-            case 0xAF:
+            case 0xB0: return PThis.CBtable.RES.RESn('b',6);
+            case 0xB1: return PThis.CBtable.RES.RESn('c',6);
+            case 0xB2: return PThis.CBtable.RES.RESn('d',6);
+            case 0xB3: return PThis.CBtable.RES.RESn('e',6);
+            case 0xB4: return PThis.CBtable.RES.RESn('h',6);
+            case 0xB5: return PThis.CBtable.RES.RESn('l',6);
+            case 0xB6: return PThis.CBtable.RES.RESatHL(6);
+            case 0xB7: return PThis.CBtable.RES.RESn('a',6);
+            case 0xB8: return PThis.CBtable.RES.RESn('b',7);
+            case 0xB9: return PThis.CBtable.RES.RESn('c',7);
+            case 0xBA: return PThis.CBtable.RES.RESn('d',7);
+            case 0xBB: return PThis.CBtable.RES.RESn('e',7);
+            case 0xBC: return PThis.CBtable.RES.RESn('h',7);
+            case 0xBD: return PThis.CBtable.RES.RESn('l',7);
+            case 0xBE: return PThis.CBtable.RES.RESatHL(7);
+            case 0xBF: return PThis.CBtable.RES.RESn('a',7);
 
-            case 0xB0:
-            case 0xB1:
-            case 0xB2:
-            case 0xB3:
-            case 0xB4:
-            case 0xB5:
-            case 0xB6:
-            case 0xB7:
-            case 0xB8:
-            case 0xB9:
-            case 0xBA:
-            case 0xBB:
-            case 0xBC:
-            case 0xBD:
-            case 0xBE:
-            case 0xBF:
+            case 0xC0: return PThis.CBtable.SET.SETn('b',0);
+            case 0xC1: return PThis.CBtable.SET.SETn('c',0);
+            case 0xC2: return PThis.CBtable.SET.SETn('d',0);
+            case 0xC3: return PThis.CBtable.SET.SETn('e',0);
+            case 0xC4: return PThis.CBtable.SET.SETn('h',0);
+            case 0xC5: return PThis.CBtable.SET.SETn('l',0);
+            case 0xC6: return PThis.CBtable.SET.SETatHL(0);
+            case 0xC7: return PThis.CBtable.SET.SETn('a',0);
+            case 0xC8: return PThis.CBtable.SET.SETn('b',1);
+            case 0xC9: return PThis.CBtable.SET.SETn('c',1);
+            case 0xCA: return PThis.CBtable.SET.SETn('d',1);
+            case 0xCB: return PThis.CBtable.SET.SETn('e',1);
+            case 0xCC: return PThis.CBtable.SET.SETn('h',1);
+            case 0xCD: return PThis.CBtable.SET.SETn('l',1);
+            case 0xCE: return PThis.CBtable.SET.SETatHL(1);
+            case 0xCF: return PThis.CBtable.SET.SETn('a',1);
 
-            case 0xC0:
-            case 0xC1:
-            case 0xC2:
-            case 0xC3:
-            case 0xC4:
-            case 0xC5:
-            case 0xC6:
-            case 0xC7:
-            case 0xC8:
-            case 0xC9:
-            case 0xCA:
-            case 0xCB:
-            case 0xCC:
-            case 0xCD:
-            case 0xCE:
-            case 0xCF:
+            case 0xD0: return PThis.CBtable.SET.SETn('b',2);
+            case 0xD1: return PThis.CBtable.SET.SETn('c',2);
+            case 0xD2: return PThis.CBtable.SET.SETn('d',2);
+            case 0xD3: return PThis.CBtable.SET.SETn('e',2);
+            case 0xD4: return PThis.CBtable.SET.SETn('h',2);
+            case 0xD5: return PThis.CBtable.SET.SETn('l',2);
+            case 0xD6: return PThis.CBtable.SET.SETatHL(2);
+            case 0xD7: return PThis.CBtable.SET.SETn('a',2);
+            case 0xD8: return PThis.CBtable.SET.SETn('b',3);
+            case 0xD9: return PThis.CBtable.SET.SETn('c',3);
+            case 0xDA: return PThis.CBtable.SET.SETn('d',3);
+            case 0xDB: return PThis.CBtable.SET.SETn('e',3);
+            case 0xDC: return PThis.CBtable.SET.SETn('h',3);
+            case 0xDD: return PThis.CBtable.SET.SETn('l',3);
+            case 0xDE: return PThis.CBtable.SET.SETatHL(3);
+            case 0xDF: return PThis.CBtable.SET.SETn('a',3);
 
-            case 0xD0:
-            case 0xD1:
-            case 0xD2:
-            case 0xD3:
-            case 0xD4:
-            case 0xD5:
-            case 0xD6:
-            case 0xD7:
-            case 0xD8:
-            case 0xD9:
-            case 0xDA:
-            case 0xDB:
-            case 0xDC:
-            case 0xDD:
-            case 0xDE:
-            case 0xDF:
+            case 0xE0: return PThis.CBtable.SET.SETn('b',4);
+            case 0xE1: return PThis.CBtable.SET.SETn('c',4);
+            case 0xE2: return PThis.CBtable.SET.SETn('d',4);
+            case 0xE3: return PThis.CBtable.SET.SETn('e',4);
+            case 0xE4: return PThis.CBtable.SET.SETn('h',4);
+            case 0xE5: return PThis.CBtable.SET.SETn('l',4);
+            case 0xE6: return PThis.CBtable.SET.SETatHL(4);
+            case 0xE7: return PThis.CBtable.SET.SETn('a',4);
+            case 0xE8: return PThis.CBtable.SET.SETn('b',5);
+            case 0xE9: return PThis.CBtable.SET.SETn('c',5);
+            case 0xEA: return PThis.CBtable.SET.SETn('d',5);
+            case 0xEB: return PThis.CBtable.SET.SETn('e',5);
+            case 0xEC: return PThis.CBtable.SET.SETn('h',5);
+            case 0xED: return PThis.CBtable.SET.SETn('l',5);
+            case 0xEE: return PThis.CBtable.SET.SETatHL(5);
+            case 0xEF: return PThis.CBtable.SET.SETn('a',5);
 
-            case 0xE0:
-            case 0xE1:
-            case 0xE2:
-            case 0xE3:
-            case 0xE4:
-            case 0xE5:
-            case 0xE6:
-            case 0xE7:
-            case 0xE8:
-            case 0xE9:
-            case 0xEA:
-            case 0xEB:
-            case 0xEC:
-            case 0xED:
-            case 0xEE:
-            case 0xEF:
-
-            case 0xF0:
-            case 0xF1:
-            case 0xF2:
-            case 0xF3:
-            case 0xF4:
-            case 0xF5:
-            case 0xF6:
-            case 0xF7:
-            case 0xF8:
-            case 0xF9:
-            case 0xFA:
-            case 0xFB:
-            case 0xFC:
-            case 0xFD:
-            case 0xFE:
-            case 0xFF:
+            case 0xF0: return PThis.CBtable.SET.SETn('b',6);
+            case 0xF1: return PThis.CBtable.SET.SETn('c',6);
+            case 0xF2: return PThis.CBtable.SET.SETn('d',6);
+            case 0xF3: return PThis.CBtable.SET.SETn('e',6);
+            case 0xF4: return PThis.CBtable.SET.SETn('h',6);
+            case 0xF5: return PThis.CBtable.SET.SETn('l',6);
+            case 0xF6: return PThis.CBtable.SET.SETatHL(6);
+            case 0xF7: return PThis.CBtable.SET.SETn('a',6);
+            case 0xF8: return PThis.CBtable.SET.SETn('b',7);
+            case 0xF9: return PThis.CBtable.SET.SETn('c',7);
+            case 0xFA: return PThis.CBtable.SET.SETn('d',7);
+            case 0xFB: return PThis.CBtable.SET.SETn('e',7);
+            case 0xFC: return PThis.CBtable.SET.SETn('h',7);
+            case 0xFD: return PThis.CBtable.SET.SETn('l',7);
+            case 0xFE: return PThis.CBtable.SET.SETatHL(7);
+            case 0xFF: return PThis.CBtable.SET.SETn('a',7);
 
         }
     }
 }
-var p1 = new Processor();
+var p1 = new Processor;
 
 
